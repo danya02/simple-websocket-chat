@@ -5,6 +5,20 @@
         <link data-trunk rel="copy-file" href="manifest.json"/>
         <link rel="manifest" href="manifest.json" />
         <link data-trunk rel="copy-dir" href="icon"/>
+        <link data-trunk rel="copy-file" href="service_worker.js">
         <title>Simple Websocket Chat</title>
+
+
+        <script>
+            // register ServiceWorker
+            window.onload = () => {
+                'use strict';
+
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker
+                            .register('./service_worker.js');
+                }
+            }
+        </script>
     </head>
 </html>
