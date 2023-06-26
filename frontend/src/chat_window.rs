@@ -5,6 +5,8 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::prelude::*;
 
+use crate::web_push::WebPushSetup;
+
 #[function_component]
 pub fn ChatWindow() -> Html {
     let loc = &use_location();
@@ -18,8 +20,6 @@ pub fn ChatWindow() -> Html {
     let did_send_username = use_state_eq(|| false);
 
     let username = use_local_storage::<String>("username".to_string());
-    let privkey = use_local_storage::<String>("private_key".to_string());
-
 
     let options = UseWebSocketOptions {
         onopen: None,
@@ -29,7 +29,9 @@ pub fn ChatWindow() -> Html {
                 let message_parsed = serde_json::from_str(&message);
                 match message_parsed {
                     Ok(msg) => chat_history.push(msg),
-                    Err(why) => chat_history.push(ChatMessage::SystemMessage { content: format!("Server sent an unexpected message: {why}") }),
+                    Err(why) => chat_history.push(ChatMessage::SystemMessage {
+                        content: format!("Server sent an unexpected message: {why}"),
+                    }),
                 }
             })
         }),
@@ -69,7 +71,7 @@ pub fn ChatWindow() -> Html {
         UseWebSocketReadyState::Connecting => {
             did_send_username.set(false);
             html!(<h2>{"Connecting to chat websocket..."}</h2>)
-        },
+        }
         UseWebSocketReadyState::Closing => {
             html!(<h2>{"Websocket is closing (this should never happen?!)..."}</h2>)
         }
@@ -78,10 +80,14 @@ pub fn ChatWindow() -> Html {
             html!(<h2>{"Websocket is closed, reconnecting..."}</h2>)
         }
         UseWebSocketReadyState::Open => {
-            if !(*did_send_username){
+            if !(*did_send_username) {
                 let username = username.clone();
-                let username = (*username).clone().expect_throw("no username while in chat window code?!");
-                ws_conn.send(serde_json::to_string(&ChatMessage::ConnectionUsername { username }).unwrap());
+                let username = (*username)
+                    .clone()
+                    .expect_throw("no username while in chat window code?!");
+                ws_conn.send(
+                    serde_json::to_string(&ChatMessage::ConnectionUsername { username }).unwrap(),
+                );
                 did_send_username.set(true);
             }
             html!(
@@ -97,6 +103,10 @@ pub fn ChatWindow() -> Html {
                         <input type="text" oninput={oninput_cb} value={(*text_value).clone()} />
                         <input type="submit" value="Send!" />
                     </form>
+                    <div>
+                        <p>{"Push notification config (if you can't see this, reload the page)"}</p>
+                        <WebPushSetup />
+                    </div>
                 </div>
             )
         }
@@ -111,12 +121,18 @@ struct MessageDisplayProps {
 #[function_component]
 fn MessageDisplay(props: &MessageDisplayProps) -> Html {
     match &props.message {
-        ChatMessage::TextMessage { username, content, signature } => html!{
+        ChatMessage::TextMessage {
+            username,
+            content,
+            signature,
+        } => html! {
             <p><span style="text-color: blue;">{&username}</span>{":"}<span>{&content}</span></p>
         },
-        ChatMessage::SystemMessage { content } => html!{
+        ChatMessage::SystemMessage { content } => html! {
             <p style="text-color: red;">{&content}</p>
         },
-        ChatMessage::ConnectionUsername { .. } => html!{<h1>{format!("{:?} (should never see this)", &props.message)}</h1>}
+        ChatMessage::ConnectionUsername { .. } => {
+            html! {<h1>{format!("{:?} (should never see this)", &props.message)}</h1>}
+        }
     }
 }

@@ -7,6 +7,7 @@ use yew::prelude::*;
 use yew_hooks::prelude::*;
 
 mod chat_window;
+mod web_push;
 
 #[function_component]
 fn App() -> Html {

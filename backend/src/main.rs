@@ -3,7 +3,7 @@ use std::{borrow::Cow, env, error::Error, path::PathBuf};
 
 use axum::{
     extract::{
-        ws::{close_code, CloseCode, CloseFrame, Message, WebSocket},
+        ws::{close_code, CloseFrame, Message, WebSocket},
         Path, State, WebSocketUpgrade,
     },
     http::StatusCode,
@@ -15,11 +15,13 @@ use base64::Engine;
 use common::ChatMessage;
 use k256::PublicKey;
 use notification::get_notification_router;
-use rand::{seq::SliceRandom, thread_rng, Rng, SeedableRng};
+use rand::{seq::SliceRandom, SeedableRng};
 use sqlx::{query, SqlitePool};
 use tokio::sync::{broadcast, mpsc};
 use tower_http::services::ServeDir;
-use web_push::{VapidSignatureBuilder, WebPushClient};
+use web_push::{VapidSignatureBuilder, WebPushClient, PartialVapidSignatureBuilder};
+
+use crate::notification::notification_receiver_loop;
 
 mod message_manager;
 mod notification;
@@ -34,6 +36,10 @@ pub struct AppState {
     pub pool: SqlitePool,
     pub message_manager_tx: mpsc::Sender<ChatMessage>,
     message_manager_broadcaster: broadcast::Sender<ChatMessage>,
+    pub webpush_client: WebPushClient,
+    pub webpush_signer: PartialVapidSignatureBuilder,
+    pub webpush_server_url: String,
+
 }
 
 impl AppState {
@@ -67,20 +73,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let (message_manager_tx, message_manager_rx) = mpsc::channel(100);
     let (message_broadcaster_tx, message_broadcaster_rx) = broadcast::channel(100);
-    drop(message_broadcaster_rx);
 
     tokio::spawn(message_manager::manage_messages(
         message_manager_rx,
         message_broadcaster_tx.clone(),
     ));
 
-    let appstate = AppState {
-        pool,
-        message_manager_tx,
-        message_manager_broadcaster: message_broadcaster_tx,
-    };
 
-    // Prepare items to send web push
     let vapid_private_key = vapid_private_key.trim();
     let client = WebPushClient::new()?;
     let signer =
@@ -88,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if signer.is_err() {
         say_wrong_keys();
         signer?;
-        return Ok(());
+        unreachable!();
     }
     let signer = signer.unwrap();
 
@@ -99,6 +98,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let server_url = env::var("SERVER_URL").expect("SERVER_URL should be set in .env file");
 
+
+    tokio::spawn(notification_receiver_loop(pool.clone(), signer.clone(), client.clone(), message_broadcaster_rx));
+
+
+    let appstate = AppState {
+        pool,
+        message_manager_tx,
+        message_manager_broadcaster: message_broadcaster_tx,
+        webpush_client: client,
+        webpush_signer: signer,
+        webpush_server_url: server_url,
+    };
+
     let app = Router::<AppState>::new()
         .route("/ws", get(handle_websocket_connection))
         .route("/vapid_public_key", get(get_pubkey))
@@ -106,7 +118,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/pubkey/:username", get(get_pubkey_by_username))
         .nest(
             "/notification",
-            get_notification_router(client, signer, server_url),
+            get_notification_router(),
         )
         .nest_service(
             "/",
