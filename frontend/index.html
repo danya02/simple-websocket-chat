@@ -21,4 +21,40 @@
             }
         </script>
     </head>
+
+    <body>
+        <p>This page requires JavaScript, WebAssembly and WebSocket support in your browser, which <a href="https://caniuse.com/wasm">should be supported by most browser versions since 2018</a>.</p>
+        <hr>
+        <p>In an emergency, you can also send simple unauthenticated messages by connecting to the raw WebSocket, which is at <code>/ws</code> on this server.</p>
+        <p>On desktop, use a WebSocket client like <a href="https://github.com/vi/websocat">websocat</a>.</p>
+        <p>On a browser that has a developer console, you can use this snippet to connect and log messages from the server:</p>
+        <div>
+            <code><pre>
+// taken from https://javascript.info/websocket
+socket = new WebSocket("wss://example.com/ws");  // <-- FIXME: change URL to this server
+
+socket.onopen = function(e) {
+    console.log("[open] Connection established");
+};
+
+socket.onmessage = function(event) {
+    console.log(`[message] Data received from server: ${event.data}`);
+};
+
+socket.onclose = function(event) {
+    if (event.wasClean) {
+        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+    } else {
+        // e.g. server process killed or network down
+        // event.code is usually 1006 in this case
+        console.log('[close] Connection died');
+}
+};
+
+socket.onerror = function(error) {
+    console.log(`[error] ${error}`);
+};
+</pre></code>
+        </div>
+    </body>
 </html>

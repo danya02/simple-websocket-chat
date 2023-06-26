@@ -5,6 +5,9 @@ use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::prelude::*;
+
+mod chat_window;
+
 #[function_component]
 fn App() -> Html {
     let username_stored = use_local_storage::<String>("username".to_string());
@@ -39,7 +42,10 @@ fn App() -> Html {
                         username_stored.set(username);
                         return Ok(());
                     } else {
-                        let why = res.text().await.unwrap_or("server returned non-text data".to_string());
+                        let why = res
+                            .text()
+                            .await
+                            .unwrap_or("server returned non-text data".to_string());
                         return Err(format!("Error registering: {why}"));
                     }
                 }
@@ -90,31 +96,7 @@ fn App() -> Html {
 
     // If here, registration is complete and we have a username to use.
 
-    html!(<ChatWindow />)
-}
-
-#[function_component]
-fn ChatWindow() -> Html {
-    let loc = &use_location();
-    let path = format!(
-        "ws{}://{}/websocket",
-        if loc.protocol == "https" { "s" } else { "" },
-        loc.host,
-    );
-    let options = UseWebSocketOptions {
-        onopen: None,
-        onmessage: None,
-        onmessage_bytes: None,
-        onerror: None,
-        onclose: None,
-        reconnect_limit: None,
-        reconnect_interval: None,
-        manual: None,
-        protocols: None,
-    };
-    let ws_conn = use_websocket_with_options(path, options);
-
-    html!(<p>{"Chat!"}</p>)
+    html!(<chat_window::ChatWindow />)
 }
 
 fn main() {

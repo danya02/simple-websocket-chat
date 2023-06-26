@@ -166,9 +166,11 @@ dependencies = [
  "anyhow",
  "axum",
  "base64 0.21.2",
+ "common",
  "dotenvy",
  "ecdsa",
  "k256",
+ "rand",
  "serde",
  "serde_json",
  "sqlx",
@@ -306,6 +308,13 @@ dependencies = [
  "once_cell",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -694,6 +703,7 @@ name = "frontend"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.2",
+ "common",
  "ecdsa",
  "getrandom",
  "k256",
